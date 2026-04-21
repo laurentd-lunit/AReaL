@@ -32,13 +32,17 @@ def default_get_input_ids_fn(
     tokenizer: PreTrainedTokenizerFast,
     enable_thinking: bool,
 ) -> list[int]:
-    input_ids = tokenizer.apply_chat_template(
+    result = tokenizer.apply_chat_template(
         data,
         tokenize=True,
         add_generation_prompt=True,
         enable_thinking=enable_thinking,
     )
-    return list(input_ids)
+    # transformers ≥5.0 returns a BatchEncoding instead of a plain list[int].
+    # Extract .input_ids when available; fall back to list() for older versions.
+    if hasattr(result, "input_ids"):
+        return list(result.input_ids)
+    return list(result)
 
 
 def default_data_extract_prompt_fn(data: dict[str, Any]) -> Any:

@@ -891,7 +891,7 @@ class SlurmScheduler(Scheduler):
         cmd = f"bash -c {shlex.quote(bash_cmds_str)}"
 
         # Build final command and export string
-        if self.container_type == "apptainer":
+        if spec.container_type == "apptainer":
             # For apptainer, pass env vars to singularity
             env_string = " ".join(f"--env {k}={v}" for k, v in env_vars_dict.items())
             final_cmd = "singularity exec --no-home --writable-tmpfs --nv"
