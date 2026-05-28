@@ -240,6 +240,17 @@ class SGLangBackend:
         triton_cache_path = _env.get("TRITON_CACHE_PATH", TRITON_CACHE_PATH)
         _env["TRITON_CACHE_PATH"] = os.path.join(triton_cache_path, str(uuid.uuid4()))
 
+        # SGLang 0.5.11 validates SGLANG_GRPC_PORT unconditionally even when
+        # gRPC is disabled (SGLANG_ENABLE_GRPC=false).  The default computation
+        # is grpc_port = http_port + 10000, which exceeds 65535 when the HTTP
+        # port is above 55535.  Pin it to a safe value derived from the HTTP
+        # port so the validation never fires.
+        if "SGLANG_GRPC_PORT" not in _env:
+            http_port = server_args.get("port")
+            if http_port is not None:
+                grpc_port = http_port if http_port <= 55535 else http_port - 10001
+                _env["SGLANG_GRPC_PORT"] = str(grpc_port)
+
         return subprocess.Popen(
             cmd,
             env=_env,

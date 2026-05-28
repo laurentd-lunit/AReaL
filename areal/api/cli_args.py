@@ -1797,6 +1797,11 @@ class SGLangConfig:
     # and passed as `model_loader_extra_config` to SGLang.
     enable_multithread_load: bool = False
 
+    # MoE runner backend. None = SGLang default ("auto"), which on Blackwell
+    # silently routes DeepseekV3 architectures to flashinfer_trtllm + FP8 even
+    # for bf16 checkpoints; override to "triton" for bf16 MoE models.
+    moe_runner_backend: str | None = None
+
     # Internal field, not exposed to users.
     enable_return_routed_experts: bool = False
 

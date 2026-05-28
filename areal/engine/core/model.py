@@ -57,6 +57,10 @@ def is_qwen3_5_model(model_type: str) -> bool:
     return model_type in ["qwen3_5", "qwen3_5_text", "qwen3_5_moe", "qwen3_5_moe_text"]
 
 
+def is_deepseek_v3_model(model_type: str) -> bool:
+    return model_type in ["deepseek_v3"]
+
+
 # Copied from trl
 def disable_dropout_in_model(model: torch.nn.Module) -> None:
     for module in model.modules():

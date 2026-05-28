@@ -146,7 +146,10 @@ class SGLangServerWrapper:
             visible = os.getenv(current_platform.device_control_env_var).split(",")
             n_visible_devices = len(visible)
             n_servers_per_proc = max(1, n_visible_devices // gpus_per_server)
-            server_idx_offset = min(list(map(int, visible))) // gpus_per_server
+            # Normalize to local-node offset so port ranges stay within 65535
+            # when CUDA_VISIBLE_DEVICES uses global GPU IDs (e.g. 8-15 on node 2).
+            min_gpu_id = min(map(int, visible))
+            server_idx_offset = (min_gpu_id % self.n_gpus_per_node) // gpus_per_server
         else:
             n_servers_per_proc = n_servers_per_node
             server_idx_offset = 0
@@ -188,7 +191,11 @@ class SGLangServerWrapper:
                 n_nodes=n_nodes,
                 node_rank=node_rank,
             )
-            launch_server_args.append((cmd, host_ip, server_port, node_rank))
+            # SGLang 0.5.11 validates grpc_port=port+10000 unconditionally even
+            # when SGLANG_ENABLE_GRPC=false.  Ports above 55535 produce an
+            # invalid grpc_port > 65535.  Set it explicitly to a safe value.
+            grpc_port = server_port if server_port <= 55535 else server_port - 10001
+            launch_server_args.append((cmd, host_ip, server_port, node_rank, grpc_port))
             server_addresses.append(f"http://{format_hostport(host_ip, server_port)}")
 
         with ThreadPoolExecutor(max_workers=n_servers_per_proc) as executor:
@@ -201,8 +208,9 @@ class SGLangServerWrapper:
         # Monitor server processes
         self._monitor_server_processes(server_addresses)
 
-    def launch_one_server(self, cmd, host_ip, server_port, node_rank):
-        server_process = launch_server_cmd(cmd)
+    def launch_one_server(self, cmd, host_ip, server_port, node_rank, grpc_port=None):
+        custom_env = {"SGLANG_GRPC_PORT": str(grpc_port)} if grpc_port is not None else None
+        server_process = launch_server_cmd(cmd, custom_env=custom_env)
         wait_for_server(f"http://{format_hostport(host_ip, server_port)}")
         if node_rank == 0:
             name = names.gen_servers(self.experiment_name, self.trial_name)
